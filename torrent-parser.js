@@ -4,7 +4,7 @@ import crypto from "crypto";
 import bignum from "bignum";
 
 export const open = (filepath) => {
-  return bencode.decode(fs.readFileSync(filepath));
+  return bencode.decode(fs.readFileSync(filepath), "utf8");
 };
 
 export const size = (torrent) => {

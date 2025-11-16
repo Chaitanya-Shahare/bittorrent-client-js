@@ -1,39 +1,64 @@
-"use strict";
-
 import dgram from "dgram";
 import { Buffer } from "buffer";
-import { parse as urlParse } from "url";
 import crypto from "crypto";
 
-import torrentParser from "./torrent-parser";
-import util from "./util";
+import torrentParser from "./torrent-parser.js";
+import util from "./util.js";
 
+// TODO: Add retry logic with rotating announce list URLS
 export const getPeers = (torrent, callback) => {
   const socket = dgram.createSocket("udp4");
-  const url = torrect.announce.toString("utf8");
+  const url = torrent.announce.toString("utf8");
 
+  console.log("1. Sending connect request to:", url);
   // 1. send connect request
   udpSend(socket, buildConnReq(), url);
 
   socket.on("message", (response) => {
+    console.log("2. Received response, type:", respType(response));
+
     if (respType(response) === "connect") {
       // 2. receive and parse connect response
       const connResp = parseConnResp(response);
+      console.log("3. Connect response received, sending announce request");
       // 3. send announce request
       const announceReq = buildAnnounceReq(connResp.connectionId, torrent);
       udpSend(socket, announceReq, url);
     } else if (respType(response) === "announce") {
       // 4. parse announce response
       const announceResp = parseAnnounceResp(response);
+      console.log(
+        "4. Announce response received, peers:",
+        announceResp.peers.length,
+      );
       // 5. pass peers to callback
       callback(announceResp.peers);
     }
   });
+
+  // Add error handling
+  socket.on("error", (err) => {
+    console.error("Socket error:", err);
+  });
+
+  // Add timeout detection
+  setTimeout(() => {
+    console.log("No response received after 5 seconds");
+  }, 5000);
 };
 
 const udpSend = (socket, message, rawUrl, callback = () => {}) => {
-  const url = urlParse(rawUrl);
-  socket.send(message, 0, message.length, url.port, url.host, callback);
+  const url = new URL(rawUrl);
+  console.log(`Sending UDP packet to ${url.hostname}:${url.port}`);
+
+  socket.send(message, 0, message.length, url.port, url.hostname, (err) => {
+    if (err) {
+      console.error("Error sending UDP packet:", err);
+    } else {
+      console.log("UDP packet sent successfully");
+    }
+    callback(err);
+  });
 };
 
 const respType = (resp) => {
@@ -46,12 +71,15 @@ const buildConnReq = (resp) => {
   const buf = Buffer.alloc(16);
 
   // connection id
-  buf.writeUint32BE(0x417, 0);
-  buf.writeUint32BE(0x27101980, 4);
+  buf.writeUInt32BE(0x417, 0);
+  buf.writeUInt32BE(0x27101980, 4);
   // action
-  buf.writeUint32BE(0, 8);
+  buf.writeUInt32BE(0, 8);
   // transaction id
   crypto.randomBytes(4).copy(buf, 12);
+
+  console.log("Connect request buffer:", buf);
+  console.log("Connect request hex:", buf.toString("hex"));
 
   return buf;
 };
@@ -86,7 +114,7 @@ const buildAnnounceReq = (connId, torrent, port = 6881) => {
   // event
   buf.writeUInt32BE(0, 80);
   // ip address
-  buf.writeUInt32BE(0, 80);
+  buf.writeUInt32BE(0, 84);
   // key
   crypto.randomBytes(4).copy(buf, 88);
   // num want
@@ -119,4 +147,8 @@ const parseAnnounceResp = (resp) => {
       };
     }),
   };
+};
+
+export default {
+  getPeers,
 };
