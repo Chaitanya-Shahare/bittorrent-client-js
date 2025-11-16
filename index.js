@@ -1,5 +1,5 @@
-import tracker from "./tracker.js";
-import torrentParser from "./torrent-parser.js";
+import tracker from "./src/tracker.js";
+import torrentParser from "./src/torrent-parser.js";
 
 const torrent = torrentParser.open("big-buck-bunny.torrent");
 
