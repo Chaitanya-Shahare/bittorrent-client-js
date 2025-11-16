@@ -1,0 +1,10 @@
+{
+  "name": "bit-torrent-client",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Chaitanya Shahare <shaharechaitanya3@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "bencode": "^4.0.0"
+  }
+}
