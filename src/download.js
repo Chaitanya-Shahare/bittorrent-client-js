@@ -1,20 +1,32 @@
 import net from "net";
 import { Buffer } from "buffer";
 import tracker from "./tracker.js";
+import message from "./message.js";
 
-const download = (peer) => {
+const download = (peer, torrent) => {
   console.log(peer);
   const socket = net.Socket();
   socket.on("error", console.log);
 
   socket.connect(peer.port, peer.ip, (msg) => {
-    // socket.write(...) write a message here
+    socket.write(message.buildHandshake(torrent));
     console.log("msg", msg);
   });
 
-  onWholeMsg(socket, (data) => {
-    // handle response here
-  });
+  onWholeMsg(socket, (msg) => msgHandler(msg, socket));
+};
+
+const msgHandler = (msg, socket) => {
+  if (isHandshake(msg)) {
+    socket.write(message.buildInterested());
+  }
+};
+
+const isHandshake = (msg) => {
+  return (
+    msg.length === msg.readUInt8(0) + 49 &&
+    msg.toString("utf8", 1) === "BitTorrent protocol"
+  );
 };
 
 const onWholeMsg = (socket, callback) => {
@@ -38,7 +50,7 @@ const onWholeMsg = (socket, callback) => {
 
 const handlePeersDownload = (torrent) => {
   tracker.getPeers(torrent, (peers) => {
-    peers.forEach(download);
+    peers.forEach((peer) => download(peer, torrent));
   });
 };
 
